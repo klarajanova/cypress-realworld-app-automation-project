@@ -57,6 +57,10 @@ describe("User Sign-up and Login", function () {
     cy.database("find", "users").then((user: User) => {
       cy.login(user.username, "s3cret", { rememberUser: false });
     });
+
+    if (isMobile()) {
+      cy.getBySel("sidenav-toggle").click();
+    }
     cy.getBySel("sidenav-signout").click();
     cy.location("pathname").should("equal", "/");
     cy.visualSnapshot("Redirect to SignIn");
