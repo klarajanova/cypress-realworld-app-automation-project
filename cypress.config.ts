@@ -125,6 +125,14 @@ module.exports = defineConfig({
         },
       });
 
+      on("task", {
+        log(message) {
+          console.log(message);
+
+          return null;
+        },
+      });
+
       codeCoverageTask(on, config);
       return config;
     },

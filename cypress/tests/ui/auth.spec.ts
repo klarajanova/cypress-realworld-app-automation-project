@@ -6,7 +6,6 @@ const apiGraphQL = `${Cypress.env("apiUrl")}/graphql`;
 describe("User Sign-up and Login", function () {
   beforeEach(function () {
     cy.task("db:seed");
-
     cy.intercept("POST", "/users").as("signup");
     cy.intercept("POST", apiGraphQL, (req) => {
       const { body } = req;
@@ -17,8 +16,30 @@ describe("User Sign-up and Login", function () {
     });
   });
 
-  it("should redirect unauthenticated user to signin page", function () {
+  it("should redirect unauthenticated user to signin page - attempt to see personal page", function () {
     cy.visit("/personal");
+    cy.location("pathname").should("equal", "/signin");
+    cy.visualSnapshot("Redirect to SignIn");
+  });
+
+  // Klara's test
+  // try visiting /notifications page, which should only be seen by the authenticated users
+  it("should redirect unauthenticated user to signin page - attempt to see notifications page", function () {
+    cy.visit("/notifications");
+
+    // debug: getting location content
+    cy.location().then((loc) => {
+      cy.task("log", loc);
+    });
+
+    cy.location("pathname").should("equal", "/signin");
+    cy.visualSnapshot("Redirect to SignIn");
+  });
+
+  // Klara's test
+  // try visiting /user/settings page, which should only be seen by the authenticated users
+  it("should redirect unauthenticated user to signin page - attempt to see settings page", function () {
+    cy.visit("/user/settings");
     cy.location("pathname").should("equal", "/signin");
     cy.visualSnapshot("Redirect to SignIn");
   });
@@ -30,6 +51,57 @@ describe("User Sign-up and Login", function () {
     cy.location("pathname").should("equal", "/");
   });
 
+  // Klara's test
+  // check that the user is redirected to the sign in page after logout
+  it("should redirect to the signin page after logout", function () {
+    cy.database("find", "users").then((user: User) => {
+      cy.login(user.username, "s3cret", { rememberUser: false });
+    });
+    cy.getBySel("sidenav-signout").click();
+    cy.location("pathname").should("equal", "/");
+    cy.visualSnapshot("Redirect to SignIn");
+  });
+
+  // Klara's debug test for Typescript learning purposes
+  // check how the request properties are printed out to Cypress log and terminal output
+  it("print out request body after sign up", function () {
+    cy.intercept("POST", "/users").as("yourPostRequest");
+
+    const userInfo = {
+      firstName: "Klara",
+      lastName: "Test",
+      username: "KlarasTestUser",
+      password: "s3cret",
+    };
+
+    // Sign-up User
+    cy.visit("/");
+
+    cy.getBySel("signup").click();
+    cy.getBySel("signup-title").should("be.visible").and("contain", "Sign Up");
+    cy.visualSnapshot("Sign Up Title");
+
+    cy.getBySel("signup-first-name").type(userInfo.firstName);
+    cy.getBySel("signup-last-name").type(userInfo.lastName);
+    cy.getBySel("signup-username").type(userInfo.username);
+    cy.getBySel("signup-password").type(userInfo.password);
+    cy.getBySel("signup-confirmPassword").type(userInfo.password);
+    cy.visualSnapshot("About to Sign Up");
+    cy.getBySel("signup-submit").click();
+
+    // using different ways how to print out information about the intercepted request
+    cy.wait("@yourPostRequest").then((obj) => {
+      // request body object is not printed properly in cypress log and terminal, workaround for pretty print
+      let prettyPrintRequestBody: string = JSON.stringify(obj.request.body);
+      cy.log(prettyPrintRequestBody);
+
+      cy.task("log", `This is the request body: ${prettyPrintRequestBody}`);
+      cy.task("log", `This is the request method: ${obj.request.method}`);
+      cy.task("log", `This is the resourceType: ${obj.request.resourceType}`);
+      cy.task("log", `This is the request url: ${obj.request.url}`);
+    });
+  });
+
   it("should remember a user for 30 days after login", function () {
     cy.database("find", "users").then((user: User) => {
       cy.login(user.username, "s3cret", { rememberUser: true });
@@ -38,6 +110,11 @@ describe("User Sign-up and Login", function () {
     // Verify Session Cookie
     cy.getCookie("connect.sid").should("have.property", "expiry");
 
+    //debug: getting cookie content
+    cy.getCookie("connect.sid").then((cookie) => {
+      cy.task("log", cookie);
+    });
+
     // Logout User
     if (isMobile()) {
       cy.getBySel("sidenav-toggle").click();
@@ -45,6 +122,27 @@ describe("User Sign-up and Login", function () {
     cy.getBySel("sidenav-signout").click();
     cy.location("pathname").should("eq", "/signin");
     cy.visualSnapshot("Redirect to SignIn");
+  });
+
+  // Klara's test
+  // check that the user cookie is null after sign in and sign out
+  it("cookie should be null after sign out", function () {
+    cy.database("find", "users").then((user: User) => {
+      cy.login(user.username, "s3cret", { rememberUser: true });
+    });
+
+    // check that the session cookie is stored properly after log in
+    cy.getCookie("connect.sid").should("have.property", "expiry");
+
+    // log the user out
+    if (isMobile()) {
+      cy.getBySel("sidenav-toggle").click();
+    }
+    cy.getBySel("sidenav-signout").click();
+    cy.location("pathname").should("eq", "/signin");
+    cy.visualSnapshot("Redirect to SignIn");
+
+    cy.getCookie("connect.sid").should("be.null");
   });
 
   it("should allow a visitor to sign-up, login, and logout", function () {
