@@ -150,7 +150,6 @@ describe("User Sign-up and Login", function () {
     cy.visualSnapshot("Redirect to SignIn");
   });
 
-
   // Klara's test
   // check that the user session cookie expires after sign in and sign out
   it("cookie should be null after sign out", function () {
