@@ -129,7 +129,30 @@ describe("User Sign-up and Login", function () {
   });
 
   // Klara's test
-  // check that the user cookie is null after sign in and sign out
+  it("should not remember a user after login", function () {
+    cy.database("find", "users").then((user: User) => {
+      cy.login(user.username, "s3cret", { rememberUser: false });
+    });
+
+    cy.getCookie("connect.sid").should("not.have.a.property", "expiry");
+
+    //debug: getting cookie content
+    cy.getCookie("connect.sid").then((cookie) => {
+      cy.task("log", cookie);
+    });
+
+    // log out user
+    if (isMobile()) {
+      cy.getBySel("sidenav-toggle").click();
+    }
+    cy.getBySel("sidenav-signout").click();
+    cy.location("pathname").should("eq", "/signin");
+    cy.visualSnapshot("Redirect to SignIn");
+  });
+
+
+  // Klara's test
+  // check that the user session cookie expires after sign in and sign out
   it("cookie should be null after sign out", function () {
     cy.database("find", "users").then((user: User) => {
       cy.login(user.username, "s3cret", { rememberUser: true });
@@ -146,6 +169,7 @@ describe("User Sign-up and Login", function () {
     cy.location("pathname").should("eq", "/signin");
     cy.visualSnapshot("Redirect to SignIn");
 
+    // check that the cookie is null after log out
     cy.getCookie("connect.sid").should("be.null");
   });
 
